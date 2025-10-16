@@ -1,0 +1,1 @@
+export default function App(){return <div style={{padding:24}}><h1>AutoLinker – MVP</h1><p>Projeto base pronto para deploy na Vercel.</p></div>}
