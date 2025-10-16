@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react'
+import { AuthProvider, useAuth } from './auth'
+import LoginSignup from './components/LoginSignup'
 
 type Carro = {
   id: number;
@@ -12,7 +14,18 @@ type Carro = {
 };
 
 export default function App() {
+  return (
+    <AuthProvider>
+      <Shell />
+    </AuthProvider>
+  );
+}
+
+function Shell() {
+  const { user, logout } = useAuth();
   const [tab, setTab] = useState<'home' | 'buscar' | 'dashboard'>('home');
+
+  // ---------- Dados fictícios ----------
   const [qModelo, setQModelo] = useState('');
   const [precoMin, setPrecoMin] = useState('');
   const [precoMax, setPrecoMax] = useState('');
@@ -25,12 +38,8 @@ export default function App() {
     ['VW Voyage', 790, 2020, 'Automático', false],
     ['Renault Kwid', 620, 2021, 'Manual', true],
   ].map((v, i) => ({
-    id: i + 1,
-    modelo: v[0] as string,
-    valorSemanal: v[1] as number,
-    ano: v[2] as number,
-    cambio: v[3] as string,
-    ativo: v[4] as boolean,
+    id: i + 1, modelo: v[0] as string, valorSemanal: v[1] as number, ano: v[2] as number,
+    cambio: v[3] as string, ativo: v[4] as boolean,
     foto: 'https://images.unsplash.com/photo-1549921296-3ecf9a1f1b36?q=80&w=1200&auto=format&fit=crop',
     observacoes: 'Veículo de locadora, manutenção em dia. Caução sob consulta.',
   })));
@@ -46,10 +55,6 @@ export default function App() {
     });
   }, [veiculos, qModelo, precoMin, precoMax, tab]);
 
-  function toggleAtivo(id: number) {
-    setVeiculos((curr) => curr.map((c) => (c.id === id ? { ...c, ativo: !c.ativo } : c)));
-  }
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
@@ -58,16 +63,33 @@ export default function App() {
             <Logo />
             <span className="font-semibold">AutoLinker</span>
           </div>
-          <nav className="flex gap-1">
+
+          <nav className="flex gap-1 items-center">
             <Tab label="Início" active={tab === 'home'} onClick={() => setTab('home')} />
             <Tab label="Buscar carros" active={tab === 'buscar'} onClick={() => setTab('buscar')} />
-            <Tab label="Painel Locadora" active={tab === 'dashboard'} onClick={() => setTab('dashboard')} />
+            <Tab
+              label="Painel Locadora"
+              active={tab === 'dashboard'}
+              onClick={() => setTab('dashboard')}
+            />
+            {user ? (
+              <div className="ml-2 flex items-center gap-2 text-sm">
+                <span className="hidden sm:inline text-slate-600">
+                  Olá, <b>{user.nome}</b> ({user.role})
+                </span>
+                <button className="rounded-full px-3 py-1 border" onClick={logout}>
+                  Sair
+                </button>
+              </div>
+            ) : null}
           </nav>
         </div>
       </header>
 
+      {/* HOME */}
       {tab === 'home' && <Home onIrBuscar={() => setTab('buscar')} />}
 
+      {/* BUSCAR */}
       {tab === 'buscar' && (
         <main className="mx-auto max-w-5xl px-4 py-6">
           <h1 className="text-2xl font-bold mb-4">Encontre seu carro</h1>
@@ -96,7 +118,7 @@ export default function App() {
             />
           </section>
 
-          {/* Lista de cartões */}
+          {/* Lista */}
           <section className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtrados.map((c) => (
               <article key={c.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -114,10 +136,7 @@ export default function App() {
                     >
                       Ver detalhes
                     </button>
-                    <button
-                      className="rounded-xl border px-3 py-2"
-                      onClick={() => alert('Abrir WhatsApp/Chat – MVP')}
-                    >
+                    <button className="rounded-xl border px-3 py-2" onClick={() => alert('Abrir WhatsApp/Chat – MVP')}>
                       Contato
                     </button>
                   </div>
@@ -128,38 +147,12 @@ export default function App() {
         </main>
       )}
 
+      {/* DASHBOARD (protegido: somente Locadora) */}
       {tab === 'dashboard' && (
         <main className="mx-auto max-w-5xl px-4 py-6">
-          <h1 className="text-2xl font-bold mb-4">Painel da Locadora</h1>
-          <p className="text-slate-600 mb-4">Gerencie os veículos e controle a exibição (Ativo/Inativo).</p>
-          <div className="grid gap-3">
-            {veiculos.map((c) => (
-              <div key={c.id} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-4">
-                <div className="w-28 h-16 rounded-xl overflow-hidden bg-slate-100">
-                  <img src={c.foto} alt={c.modelo} className="w-full h-full object-cover" />
-                </div>
-                <div className="flex-1">
-                  <div className="font-medium">{c.modelo}</div>
-                  <div className="text-sm text-slate-600">R$ {c.valorSemanal}/semana</div>
-                </div>
-                <span className={`text-xs px-2 py-1 rounded-full ${c.ativo ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'}`}>
-                  {c.ativo ? 'Ativo' : 'Inativo'}
-                </span>
-                <div className="flex gap-2">
-                  <button className="rounded-xl border px-3 py-2" onClick={() => alert('Editar – MVP')}>Editar</button>
-                  <button className="rounded-xl border px-3 py-2" onClick={() => alert('Excluir – MVP')}>Excluir</button>
-                  <button className="rounded-xl bg-slate-900 text-white px-3 py-2" onClick={() => toggleAtivo(c.id)}>
-                    {c.ativo ? 'Desativar' : 'Ativar'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-6">
-            <button className="w-full rounded-2xl bg-emerald-600 text-white px-4 py-3 text-center font-semibold hover:bg-emerald-700">
-              Adicionar veículo (MVP)
-            </button>
-          </div>
+          <Protected role="Locadora">
+            <Dashboard veiculos={veiculos} setVeiculos={setVeiculos} />
+          </Protected>
         </main>
       )}
 
@@ -201,16 +194,87 @@ export default function App() {
   )
 }
 
+/** ----- Componentes auxiliares ----- */
+
+function Protected({ role, children }: { role: 'Locadora' | 'Motorista'; children: React.ReactNode }) {
+  const { user } = useAuth();
+  const [showAuth, setShowAuth] = useState(!user);
+
+  if (!user) {
+    return (
+      <div className="mx-auto max-w-lg">
+        <p className="mb-4 text-slate-700">Você precisa estar logado para acessar esta área.</p>
+        <LoginSignup onSuccess={() => setShowAuth(false)} />
+      </div>
+    );
+  }
+  if (user.role !== role) {
+    return (
+      <div className="mx-auto max-w-lg bg-amber-50 border border-amber-200 rounded-xl p-4">
+        <p className="text-amber-800">
+          Acesso restrito para <b>{role}</b>. Sua conta atual: <b>{user.role}</b>.
+        </p>
+      </div>
+    );
+  }
+  return <>{children}</>;
+}
+
+function Dashboard({ veiculos, setVeiculos }: { veiculos: Carro[]; setVeiculos: React.Dispatch<React.SetStateAction<Carro[]>> }) {
+  function toggleAtivo(id: number) {
+    setVeiculos(curr => curr.map(c => (c.id === id ? { ...c, ativo: !c.ativo } : c)));
+  }
+  return (
+    <>
+      <h1 className="text-2xl font-bold mb-4">Painel da Locadora</h1>
+      <p className="text-slate-600 mb-4">Gerencie os veículos e controle a exibição (Ativo/Inativo).</p>
+      <div className="grid gap-3">
+        {veiculos.map((c) => (
+          <div key={c.id} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-4">
+            <div className="w-28 h-16 rounded-xl overflow-hidden bg-slate-100">
+              <img src={c.foto} alt={c.modelo} className="w-full h-full object-cover" />
+            </div>
+            <div className="flex-1">
+              <div className="font-medium">{c.modelo}</div>
+              <div className="text-sm text-slate-600">R$ {c.valorSemanal}/semana</div>
+            </div>
+            <span className={`text-xs px-2 py-1 rounded-full ${c.ativo ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'}`}>
+              {c.ativo ? 'Ativo' : 'Inativo'}
+            </span>
+            <div className="flex gap-2">
+              <button className="rounded-xl border px-3 py-2" onClick={() => alert('Editar – MVP')}>Editar</button>
+              <button className="rounded-xl border px-3 py-2" onClick={() => alert('Excluir – MVP')}>Excluir</button>
+              <button className="rounded-xl bg-slate-900 text-white px-3 py-2" onClick={() => toggleAtivo(c.id)}>
+                {c.ativo ? 'Desativar' : 'Ativar'}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-6">
+        <button className="w-full rounded-2xl bg-emerald-600 text-white px-4 py-3 text-center font-semibold hover:bg-emerald-700">
+          Adicionar veículo (MVP)
+        </button>
+      </div>
+    </>
+  );
+}
+
 function Home({ onIrBuscar }: { onIrBuscar: () => void }) {
+  const { user } = useAuth();
   return (
     <main className="mx-auto max-w-5xl px-4 pt-10 pb-8">
       <section className="grid md:grid-cols-2 items-center gap-8">
         <div>
           <h1 className="text-3xl md:text-4xl font-extrabold leading-tight">Alugue seu carro para trabalhar nos apps</h1>
           <p className="mt-3 text-slate-700">Conectamos motoristas e locadoras com agilidade e transparência. Comece filtrando por modelo e valor semanal.</p>
-          <div className="mt-5 flex gap-3">
+          <div className="mt-5 flex gap-3 flex-wrap">
             <button className="rounded-2xl bg-emerald-600 text-white px-5 py-3 font-semibold hover:bg-emerald-700" onClick={onIrBuscar}>Encontrar carros</button>
-            <button className="rounded-2xl border px-5 py-3" onClick={() => alert('Cadastro – MVP')}>Sou locadora</button>
+            {!user && (
+              <span className="text-sm text-slate-600 self-center">
+                Para acessar o Painel da Locadora, crie uma conta como <b>Locadora</b> ou faça login.
+              </span>
+            )}
           </div>
         </div>
         <div className="rounded-3xl overflow-hidden shadow-sm border border-slate-200">
